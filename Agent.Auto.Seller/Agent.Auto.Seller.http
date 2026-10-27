@@ -1,0 +1,6 @@
+@Agent.Auto.Seller_HostAddress = http://localhost:5007
+
+GET {{Agent.Auto.Seller_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

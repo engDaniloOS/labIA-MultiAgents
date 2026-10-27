@@ -1,0 +1,6 @@
+@Agent.Auto.Hunter_HostAddress = http://localhost:5087
+
+GET {{Agent.Auto.Hunter_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

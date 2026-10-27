@@ -1,0 +1,25 @@
+services:
+  tools-api:
+    build:
+      context: .
+      dockerfile: src/Tools.Api/Dockerfile
+    container_name: multiagents-tools-api
+    ports:
+      - "5100:8080"
+
+  orchestrator-api:
+    build:
+      context: .
+      dockerfile: src/Orchestrator.Api/Dockerfile
+    container_name: multiagents-orchestrator-api
+    depends_on:
+      - tools-api
+    environment:
+      Tools__BaseUrl: http://tools-api:8080
+      AI_API_KEY: ${AI_API_KEY}
+    ports:
+      - "5200:8080"
+
+# Próximas etapas (descomentar quando necessário):
+#   qdrant:     banco vetorial
+#   embeddings: modelo de embeddings (ex.: text-embeddings-inference ou ollama)

@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Agent.Auto.Bank/Agent.Auto.Bank.csproj" Id="2144199e-219a-474b-9dc2-0e1625e6381b" />
+  <Project Path="Agent.Auto.Hunter/Agent.Auto.Hunter.csproj" Id="2f66e0ae-9ca6-4077-a3af-b71f75028088" />
+  <Project Path="Agent.Auto.Seller/Agent.Auto.Seller.csproj" Id="bb8e503e-45a4-4737-82db-d36282c076b8" />
+  <Project Path="src/Orchestrator.Api/Agent.Auto.Orchestor.csproj" />
+</Solution>
