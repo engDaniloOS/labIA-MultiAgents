@@ -1,23 +1,23 @@
+using Agent.Auto.Seller.Configs;
+using Agent.Auto.Seller.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Services.ConfigureAgentCard(builder.Configuration);
 
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
+app.MapGet(
+    "/.well-known/agent-card.json",
+    (AgentCardService service) => Results.Ok(service.GetAgentCard()));
 
 app.Run();
