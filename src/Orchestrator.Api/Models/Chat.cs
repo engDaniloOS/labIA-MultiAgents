@@ -4,10 +4,14 @@ namespace Agent.Auto.Orchestor.Models;
 
 public sealed record ChatRequest
 {
-    [Required] public string Agent { get; init; } = string.Empty;
+    public string? Agent { get; init; }
+
     [Required] public string Message { get; init; } = string.Empty;
 
     public string? ConversationId { get; init; }
 }
 
-public sealed record ChatResponse(string ConversationId, string Agent, string Reply);
+/// <param name="Agent">Quem respondeu. Nulo quando o roteador não teve confiança e devolveu uma pergunta de esclarecimento.</param>
+/// <param name="Routed">True se o agente foi escolhido (ou recusado) pelo roteador, false se o chamador indicou o agente.</param>
+/// <param name="Confidence">Confiança do roteador, quando ele foi usado.</param>
+public sealed record ChatResponse(string ConversationId, string? Agent, string Reply, bool Routed, double? Confidence);
