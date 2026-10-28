@@ -25,6 +25,14 @@ public class AgentRegistry(
         return await Task.WhenAll(tasks);
     }
 
+    public async Task<AgentInfo?> FindAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var endpoint = options.Value.Endpoints
+            .FirstOrDefault(e => string.Equals(e.Key, key, StringComparison.OrdinalIgnoreCase));
+
+        return endpoint.Key is null ? null : await GetAgentAsync(endpoint.Key, endpoint.Value.BaseUrl, cancellationToken);
+    }
+
     private async Task<AgentInfo> GetAgentAsync(string key, string baseUrl, CancellationToken cancellationToken)
     {
         if (_cache.TryGetValue(key, out var cached) 

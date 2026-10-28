@@ -17,6 +17,7 @@ public class AgentEndpointOptions
 public static class AgentsConfig
 {
     public const string HttpClientName = "agents";
+    public const string CallHttpClientName = "agent-calls";
 
     public static void ConfigureAgents(this IServiceCollection services, IConfiguration configuration)
     {
@@ -26,6 +27,9 @@ public static class AgentsConfig
             .ValidateOnStart();
 
         services.AddHttpClient(HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(5));
+        services.AddHttpClient(CallHttpClientName, c => c.Timeout = TimeSpan.FromSeconds(90));
+
         services.AddSingleton<Services.AgentRegistry>();
+        services.AddSingleton<Services.AgentClient>();
     }
 }
