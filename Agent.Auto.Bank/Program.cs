@@ -16,8 +16,6 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.MapControllers();
-
 app.MapGet(
     "/.well-known/agent-card.json",
     (AgentCardService service) => Results.Ok(service.GetAgentCard()));

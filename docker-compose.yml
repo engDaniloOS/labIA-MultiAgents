@@ -1,11 +1,33 @@
 services:
-  tools-api:
+  agent-auto-bank:
     build:
       context: .
-      dockerfile: src/Tools.Api/Dockerfile
-    container_name: multiagents-tools-api
+      dockerfile: Agent.Auto.Bank/Dockerfile
+    container_name: agent-auto-bank
+    environment:
+      Agent__PublicUrl: http://agent-auto-bank:8080
     ports:
-      - "5100:8080"
+      - "5301:8080"
+
+  agent-auto-hunter:
+    build:
+      context: .
+      dockerfile: Agent.Auto.Hunter/Dockerfile
+    container_name: agent-auto-hunter
+    environment:
+      Agent__PublicUrl: http://agent-auto-hunter:8080
+    ports:
+      - "5302:8080"
+
+  agent-auto-seller:
+    build:
+      context: .
+      dockerfile: Agent.Auto.Seller/Dockerfile
+    container_name: agent-auto-seller
+    environment:
+      Agent__PublicUrl: http://agent-auto-seller:8080
+    ports:
+      - "5303:8080"
 
   orchestrator-api:
     build:
@@ -13,13 +35,14 @@ services:
       dockerfile: src/Orchestrator.Api/Dockerfile
     container_name: multiagents-orchestrator-api
     depends_on:
-      - tools-api
+      - agent-auto-bank
+      - agent-auto-hunter
+      - agent-auto-seller
     environment:
       Tools__BaseUrl: http://tools-api:8080
-      AI_API_KEY: ${AI_API_KEY}
+      Agents__Bank__BaseUrl: http://agent-auto-bank:8080
+      Agents__Hunter__BaseUrl: http://agent-auto-hunter:8080
+      Agents__Seller__BaseUrl: http://agent-auto-seller:8080
+      AI_API_KEY: ${AI_API_KEY:-}
     ports:
       - "5200:8080"
-
-# Próximas etapas (descomentar quando necessário):
-#   qdrant:     banco vetorial
-#   embeddings: modelo de embeddings (ex.: text-embeddings-inference ou ollama)

@@ -1,8 +1,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY LabIAMultiAgents.slnx .
-COPY src/Orchestrator.Api/Orchestrator.Api.csproj src/Orchestrator.Api/
 COPY src/Tools.Api/Tools.Api.csproj src/Tools.Api/
 RUN dotnet restore src/Tools.Api/Tools.Api.csproj
 
