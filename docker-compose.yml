@@ -6,6 +6,8 @@ services:
     container_name: agent-auto-bank
     environment:
       Agent__PublicUrl: http://agent-auto-bank:8080
+      DOTNET_SYSTEM_NET_DISABLEIPV6: "1"
+      AI_API_KEY: ${AI_API_KEY:-}
     ports:
       - "5301:8080"
 
@@ -16,6 +18,8 @@ services:
     container_name: agent-auto-hunter
     environment:
       Agent__PublicUrl: http://agent-auto-hunter:8080
+      DOTNET_SYSTEM_NET_DISABLEIPV6: "1"
+      AI_API_KEY: ${AI_API_KEY:-}
     ports:
       - "5302:8080"
 
@@ -26,6 +30,8 @@ services:
     container_name: agent-auto-seller
     environment:
       Agent__PublicUrl: http://agent-auto-seller:8080
+      DOTNET_SYSTEM_NET_DISABLEIPV6: "1"
+      AI_API_KEY: ${AI_API_KEY:-}
     ports:
       - "5303:8080"
 

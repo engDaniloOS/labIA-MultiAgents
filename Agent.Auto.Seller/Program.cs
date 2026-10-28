@@ -1,9 +1,12 @@
 using Agent.Auto.Seller.Configs;
+using Agent.Auto.Seller.Models;
 using Agent.Auto.Seller.Services;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.ConfigureAgentCard(builder.Configuration);
+builder.Services.ConfigureA2A(builder.Configuration);
 
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull);
@@ -19,5 +22,26 @@ if (app.Environment.IsDevelopment())
 app.MapGet(
     "/.well-known/agent-card.json",
     (AgentCardService service) => Results.Ok(service.GetAgentCard()));
+
+// Endpoint JSON-RPC do A2A: é a URL anunciada em supportedInterfaces do Agent Card.
+app.MapPost("/", async (HttpRequest httpRequest, A2AService a2a, CancellationToken cancellationToken) =>
+{
+    if (!httpRequest.HasJsonContentType())
+        return Results.StatusCode(StatusCodes.Status415UnsupportedMediaType);
+
+    JsonRpcRequest? request;
+    try
+    {
+        request = await httpRequest.ReadFromJsonAsync<JsonRpcRequest>(cancellationToken);
+    }
+    catch (JsonException)
+    {
+        return Results.Ok(new JsonRpcResponse(null, Error: new JsonRpcError(-32700, "Invalid JSON payload")));
+    }
+
+    return request is null
+        ? Results.Ok(new JsonRpcResponse(null, Error: new JsonRpcError(-32600, "Request payload validation error")))
+        : Results.Ok(await a2a.HandleAsync(request, cancellationToken));
+});
 
 app.Run();
