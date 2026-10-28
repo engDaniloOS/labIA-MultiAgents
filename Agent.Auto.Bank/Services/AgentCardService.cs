@@ -1,52 +1,27 @@
-﻿namespace Agent.Auto.Bank.Services
+using Agent.Auto.Bank.Configs;
+using Agent.Auto.Bank.Models;
+using Microsoft.Extensions.Options;
+
+namespace Agent.Auto.Bank.Services;
+
+public class AgentCardService(IOptions<AgentCardOptions> options)
 {
-    public class AgentCardService
+    private const string ProtocolVersion = "1.0";
+    private const string ProtocolBinding = "JSONRPC";
+
+    private readonly AgentCard _card = Build(options.Value);
+
+    public AgentCard GetAgentCard() => _card;
+
+    private static AgentCard Build(AgentCardOptions o) => new()
     {
-        public AgentCard GetAgentCard()
-        {
-            var skills = new List<Skill>
-            {
-                new() {
-                    Id = "financeiro",
-                    Name = "Agente de financiamento veicular",
-                    Description = "Ajuda o cliente com informações sobre o financiamento veícular",
-                    Examples =
-                    [
-                        "Quais as opções de financiamento?",
-                        "Qual o prazo para quitação?",
-                        "Qual a taxa de juros aplicada?",
-                        "Quais são os documentos necessários para solicitar o financiamento?",
-                        "Como posso simular o valor das parcelas do financiamento?",
-                        "Qual o valor da entrada mínima exigida para o financiamento?"
-                    ],
-                    Tags = ["financeiro", "financiamento", "banco", "pagamento"]
-                }
-            };
-
-            return new AgentCard
-            {
-                DefaultInputModes = ["text"],
-                DefaultOutputModes = ["text"],
-                Skills = skills,
-                URL = "https://agent-auto-bank:8080"
-            };
-        }
-
-        public class AgentCard
-        {
-            public List<string> DefaultInputModes { get; set; }
-            public List<string> DefaultOutputModes { get; set; }
-            public List<Skill> Skills { get; set; }
-            public string URL { get; set; }
-        }
-
-        public class Skill
-        {
-            public string Id { get; set; }
-            public string Name { get; set; }
-            public string Description { get; set; }
-            public List<string> Examples { get; set; }
-            public List<string> Tags { get; set; }
-        }
-    }
+        Name = o.Name,
+        Description = o.Description,
+        Version = o.Version,
+        SupportedInterfaces = [new AgentInterface(o.PublicUrl, ProtocolBinding, ProtocolVersion)],
+        Capabilities = new AgentCapabilities(),
+        DefaultInputModes = ["text/plain"],
+        DefaultOutputModes = ["text/plain"],
+        Skills = o.Skills
+    };
 }

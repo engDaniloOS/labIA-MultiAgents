@@ -1,6 +1,6 @@
 @Agent.Auto.Bank_HostAddress = http://localhost:5269
 
-GET {{Agent.Auto.Bank_HostAddress}}/weatherforecast/
+GET {{Agent.Auto.Bank_HostAddress}}/.well-known/agent-card.json
 Accept: application/json
 
 ###
