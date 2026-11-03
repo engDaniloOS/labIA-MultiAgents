@@ -37,3 +37,22 @@ public sealed record A2APart
 }
 
 public sealed record SendMessageResult(A2AMessage Message);
+
+// --- Streaming (SendStreamingMessage): cada evento SSE carrega exatamente uma destas variantes em "result".
+
+public sealed record StreamResponse
+{
+    public A2ATask? Task { get; init; }
+    public A2AStatusUpdate? StatusUpdate { get; init; }
+    public A2AArtifactUpdate? ArtifactUpdate { get; init; }
+}
+
+public sealed record A2ATask(string Id, string ContextId, A2ATaskStatus Status);
+
+public sealed record A2ATaskStatus(string State, A2AMessage? Message = null);
+
+public sealed record A2AStatusUpdate(string TaskId, string ContextId, A2ATaskStatus Status);
+
+public sealed record A2AArtifactUpdate(string TaskId, string ContextId, A2AArtifact Artifact, bool? Append, bool? LastChunk);
+
+public sealed record A2AArtifact(string ArtifactId, IReadOnlyList<A2APart> Parts);

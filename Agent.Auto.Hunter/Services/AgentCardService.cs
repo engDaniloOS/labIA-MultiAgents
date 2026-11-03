@@ -19,7 +19,7 @@ public class AgentCardService(IOptions<AgentCardOptions> options)
         Description = o.Description,
         Version = o.Version,
         SupportedInterfaces = [new AgentInterface(o.PublicUrl, ProtocolBinding, ProtocolVersion)],
-        Capabilities = new AgentCapabilities(),
+        Capabilities = new AgentCapabilities(Streaming: true),
         DefaultInputModes = ["text/plain"],
         DefaultOutputModes = ["text/plain"],
         Skills = o.Skills

@@ -39,9 +39,20 @@ app.MapPost("/", async (HttpRequest httpRequest, A2AService a2a, CancellationTok
         return Results.Ok(new JsonRpcResponse(null, Error: new JsonRpcError(-32700, "Invalid JSON payload")));
     }
 
-    return request is null
-        ? Results.Ok(new JsonRpcResponse(null, Error: new JsonRpcError(-32600, "Request payload validation error")))
-        : Results.Ok(await a2a.HandleAsync(request, cancellationToken));
+    if (request is null)
+        return Results.Ok(new JsonRpcResponse(null, Error: new JsonRpcError(-32600, "Request payload validation error")));
+
+    // SendStreamingMessage responde com text/event-stream; os demais mÃ©todos, com um JSON-RPC comum.
+    if (request.Method == "SendStreamingMessage")
+    {
+        var stream = a2a.StartStreaming(request, cancellationToken);
+
+        return stream.Events is null
+            ? Results.Ok(stream.Error)
+            : TypedResults.ServerSentEvents(stream.Events);
+    }
+
+    return Results.Ok(await a2a.HandleAsync(request, cancellationToken));
 });
 
 app.Run();

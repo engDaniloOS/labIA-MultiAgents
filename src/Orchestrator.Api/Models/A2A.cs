@@ -26,3 +26,25 @@ public sealed record A2AMessage
 }
 
 public sealed record A2APart(string? Text);
+
+// Eventos do SendStreamingMessage, como o orquestrador os lê (só o que interessa para repassar o texto).
+
+public sealed record StreamEnvelope
+{
+    public JsonRpcError? Error { get; init; }
+    public StreamResult? Result { get; init; }
+}
+
+public sealed record StreamResult
+{
+    public StreamStatusUpdate? StatusUpdate { get; init; }
+    public StreamArtifactUpdate? ArtifactUpdate { get; init; }
+}
+
+public sealed record StreamStatusUpdate(A2ATaskStatus Status);
+
+public sealed record A2ATaskStatus(string State, A2AMessage? Message);
+
+public sealed record StreamArtifactUpdate(A2AArtifact Artifact);
+
+public sealed record A2AArtifact(IReadOnlyList<A2APart> Parts);

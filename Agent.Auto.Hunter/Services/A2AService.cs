@@ -4,7 +4,7 @@ using Agent.Auto.Hunter.Models;
 
 namespace Agent.Auto.Hunter.Services;
 
-public class A2AService(IMessageAgent agent, ConversationStore store, ILogger<A2AService> logger)
+public partial class A2AService(IMessageAgent agent, ConversationStore store, ILogger<A2AService> logger)
 {
     private const int InvalidRequest = -32600;
     private const int MethodNotFound = -32601;

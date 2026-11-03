@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
@@ -41,5 +42,16 @@ public class CompradorAgent : IMessageAgent
     {
         var response = await _agent.Value.RunAsync(history, cancellationToken: cancellationToken);
         return response.Text;
+    }
+
+    public async IAsyncEnumerable<string> RespondStreamingAsync(
+        IReadOnlyList<ChatMessage> history,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var update in _agent.Value.RunStreamingAsync(history, cancellationToken: cancellationToken))
+        {
+            if (!string.IsNullOrEmpty(update.Text))
+                yield return update.Text;
+        }
     }
 }
