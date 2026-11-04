@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -43,6 +44,10 @@ public partial class A2AService
         var contextId = string.IsNullOrWhiteSpace(message!.ContextId) ? Guid.NewGuid().ToString("N") : message.ContextId;
         var history = store.AddUserMessage(contextId, text);
 
+        logger.LogInformation(
+            "[{Agent}] SendStreamingMessage recebido: ctx={ContextId} pergunta=\"{Question}\" ({HistoryCount} mensagens no histórico)",
+            AgentName, contextId, Preview(text), history.Count);
+
         return new StreamStart(null, StreamEventsAsync(request.Id, contextId, history, cancellationToken));
     }
 
@@ -61,6 +66,10 @@ public partial class A2AService
 
         var reply = new StringBuilder();
         var failed = false;
+
+        var stopwatch = Stopwatch.StartNew();
+        long? firstChunkMs = null;
+        var chunkCount = 0;
 
         // Segura o pedaço mais recente até chegar o próximo, para poder marcar o último com lastChunk
         // sem precisar enviar um artefato vazio no fim.
@@ -82,13 +91,17 @@ public partial class A2AService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogError(ex, "Falha ao gerar a resposta em streaming (contextId {ContextId})", contextId);
+                logger.LogError(ex, "[{Agent}] SendStreamingMessage falhou: ctx={ContextId} após {ElapsedMs} ms e {Chunks} pedaços",
+                    AgentName, contextId, stopwatch.ElapsedMilliseconds, chunkCount);
                 failed = true;
                 break;
             }
 
             if (string.IsNullOrEmpty(chunk))
                 continue;
+
+            chunkCount++;
+            firstChunkMs ??= stopwatch.ElapsedMilliseconds;
 
             if (pending is not null)
             {
@@ -109,6 +122,10 @@ public partial class A2AService
         reply.Append(pending);
 
         store.AddAssistantMessage(contextId, reply.ToString());
+
+        logger.LogInformation(
+            "[{Agent}] SendStreamingMessage respondeu: ctx={ContextId} {Chars} caracteres em {Chunks} pedaços, primeiro em {FirstMs} ms, total {ElapsedMs} ms",
+            AgentName, contextId, reply.Length, chunkCount, firstChunkMs, stopwatch.ElapsedMilliseconds);
 
         yield return Serialize(id, StatusUpdate(taskId, contextId, StateCompleted));
     }

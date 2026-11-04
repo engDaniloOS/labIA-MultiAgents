@@ -1,79 +1,150 @@
 @page "/"
+@using System.Diagnostics
+@using System.Text.RegularExpressions
 @using Agent.Auto.Web.Models
 @using Agent.Auto.Web.Services
-@implements IDisposable
+@using Markdig
+@implements IAsyncDisposable
 @inject OrchestratorClient Orchestrator
+@inject IJSRuntime JS
 
 <PageTitle>Agentes de veículos</PageTitle>
 
-<div class="chat">
-    <h1>Agentes de veículos</h1>
+<div class="app">
+    <header class="topbar">
+        <span class="brand">Agentes de veículos</span>
+        <span class="conversation">Conversa: @(conversationId ?? "(nova)")</span>
+        <button type="button" class="ghost" @onclick="NewConversation" disabled="@busy">Nova conversa</button>
+    </header>
 
-    <div class="toolbar">
-        <label>
-            Agente
-            <select @bind="selectedAgent" disabled="@busy">
-                <option value="">Automático (roteador)</option>
-                @foreach (var agent in agents)
+    <div class="body">
+        <aside class="sidebar">
+            <div class="sidebar-title">
+                <span>Quem responde</span>
+                <button type="button" class="link" @onclick="LoadAgentsAsync" disabled="@busy">Atualizar</button>
+            </div>
+
+            <button type="button" class="agent-card @(selectedAgent == "" ? "selected" : "")"
+                    @onclick='() => Select("")' disabled="@busy">
+                <span class="dot auto"></span>
+                <span class="agent-info">
+                    <strong>Automático</strong>
+                    <small>O roteador escolhe o agente pelo assunto</small>
+                </span>
+            </button>
+
+            @foreach (var agent in agents)
+            {
+                <button type="button" class="agent-card @(selectedAgent == agent.Key ? "selected" : "")"
+                        @onclick="() => Select(agent.Key)" disabled="@(busy || !agent.Available)"
+                        title="@(agent.Available ? agent.Card?.Description : agent.Error)">
+                    <span class="dot @AgentClass(agent.Key) @(agent.Available ? "" : "off")"></span>
+                    <span class="agent-info">
+                        <strong>@agent.Key</strong>
+                        <small>@(agent.Available ? agent.Card?.Name : "indisponível")</small>
+                    </span>
+                </button>
+            }
+
+            @if (agentsError is not null)
+            {
+                <p class="error">@agentsError</p>
+            }
+        </aside>
+
+        <main class="chat">
+            <div class="messages" @ref="messagesPanel">
+                @if (messages.Count == 0)
                 {
-                    <option value="@agent.Key" disabled="@(!agent.Available)">
-                        @agent.Key@(agent.Available ? "" : " (indisponível)")
-                    </option>
+                    <div class="welcome">
+                        <h2>Como posso ajudar?</h2>
+                        <p>Fale de comprar, vender ou financiar um veículo. No modo Automático, o roteador decide qual agente atende.</p>
+                        <div class="chips">
+                            @foreach (var suggestion in suggestions)
+                            {
+                                <button type="button" class="chip" @onclick="() => SendAsync(suggestion)" disabled="@busy">@suggestion</button>
+                            }
+                        </div>
+                    </div>
                 }
-            </select>
-        </label>
-        <button type="button" @onclick="LoadAgentsAsync" disabled="@busy">Atualizar agentes</button>
-        <button type="button" @onclick="NewConversation" disabled="@busy">Nova conversa</button>
-    </div>
 
-    <small class="conversation">Conversa: @(conversationId ?? "(nova)")</small>
-
-    @if (agentsError is not null)
-    {
-        <p class="error">@agentsError</p>
-    }
-
-    <div class="messages">
-        @if (messages.Count == 0)
-        {
-            <p class="empty">Escreva uma mensagem. Ex.: "Quero um carro econômico até 80 mil" ou "Como vendo meu carro?".</p>
-        }
-
-        @foreach (var message in messages)
-        {
-            <div class="message @message.Role">
-                @if (message.Meta is not null)
+                @foreach (var message in messages)
                 {
-                    <div class="meta">@message.Meta</div>
-                }
+                    <div class="row @message.Role">
+                        <div class="avatar @AgentClass(message.AgentKey)">@Initial(message)</div>
+                        <div class="bubble">
+                            <div class="who">
+                                <strong>@(message.Role == "user" ? "Você" : message.AgentKey ?? "Assistente")</strong>
+                                @if (message.Meta is not null)
+                                {
+                                    <span class="meta">@message.Meta</span>
+                                }
+                            </div>
 
-                <div class="text">@(message.Text.Length == 0 && message.Error is null ? "…" : message.Text)</div>
+                            @if (message.Role == "user")
+                            {
+                                <div class="text plain">@message.Text</div>
+                            }
+                            else if (message.Text.Length > 0)
+                            {
+                                <div class="text">@RenderMarkdown(message.Text)</div>
+                            }
+                            else if (message.Error is null)
+                            {
+                                <div class="typing"><span></span><span></span><span></span></div>
+                            }
 
-                @if (message.Error is not null)
-                {
-                    <div class="error">@message.Error</div>
+                            @if (message.Error is not null)
+                            {
+                                <div class="error">@message.Error</div>
+                            }
+
+                            @if (message.Timing is not null)
+                            {
+                                <div class="timing">@message.Timing</div>
+                            }
+                        </div>
+                    </div>
                 }
             </div>
-        }
-    </div>
 
-    <form @onsubmit="SendAsync">
-        <input @bind="input" @bind:event="oninput" disabled="@busy" placeholder="Digite sua mensagem" autocomplete="off" />
-        <button type="submit" disabled="@(busy || string.IsNullOrWhiteSpace(input))">Enviar</button>
-    </form>
+            <form class="composer" @onsubmit="() => SendAsync(null)">
+                <input @bind="input" @bind:event="oninput" disabled="@busy"
+                       placeholder="Digite sua mensagem" autocomplete="off" />
+                <button type="submit" disabled="@(busy || string.IsNullOrWhiteSpace(input))">Enviar</button>
+            </form>
+        </main>
+    </div>
 </div>
 
 @code {
+    private static readonly MarkdownPipeline MarkdownPipeline =
+        new MarkdownPipelineBuilder().UseAdvancedExtensions().DisableHtml().Build();
+
+    private static readonly string[] suggestions =
+    [
+        "Quero um carro econômico para a cidade, até 80 mil",
+        "Preciso vender meu carro, por onde começo?",
+        "Como funciona a entrada mínima do financiamento?"
+    ];
+
     private sealed class MessageView(string role, string text)
     {
         public string Role { get; } = role;
         public string Text { get; set; } = text;
+        public string? AgentKey { get; set; }
         public string? Meta { get; set; }
+        public string? Timing { get; set; }
         public string? Error { get; set; }
     }
 
     private readonly List<MessageView> messages = [];
     private readonly CancellationTokenSource disposing = new();
+
+    private ElementReference messagesPanel;
+    private IJSObjectReference? module;
+    private bool scrollPending;
+    private bool forceScroll;
 
     private IReadOnlyList<AgentDto> agents = [];
     private string? agentsError;
@@ -83,6 +154,21 @@
     private bool busy;
 
     protected override Task OnInitializedAsync() => LoadAgentsAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./Components/Pages/Chat.razor.js");
+
+        if (scrollPending && module is not null)
+        {
+            scrollPending = false;
+            await module.InvokeVoidAsync("scrollToEnd", messagesPanel, forceScroll);
+            forceScroll = false;
+        }
+    }
+
+    private void Select(string key) => selectedAgent = key;
 
     private async Task LoadAgentsAsync()
     {
@@ -103,9 +189,10 @@
         conversationId = null;
     }
 
-    private async Task SendAsync()
+    // Quando vem de uma sugestão, usa o texto dela; quando vem do formulário, usa o que foi digitado.
+    private async Task SendAsync(string? suggestion)
     {
-        var text = input.Trim();
+        var text = (suggestion ?? input).Trim();
         if (busy || text.Length == 0)
             return;
 
@@ -115,6 +202,10 @@
         messages.Add(new MessageView("user", text));
         var reply = new MessageView("assistant", "");
         messages.Add(reply);
+        RequestScroll(force: true);
+
+        var stopwatch = Stopwatch.StartNew();
+        long? firstTextMs = null;
 
         try
         {
@@ -126,9 +217,11 @@
                 {
                     case StartEvent start:
                         conversationId = start.ConversationId;
+                        reply.AgentKey = start.Agent;
                         reply.Meta = Describe(start);
                         break;
                     case DeltaEvent delta:
+                        firstTextMs ??= stopwatch.ElapsedMilliseconds;
                         reply.Text += delta.Text;
                         break;
                     case ErrorEvent error:
@@ -137,8 +230,13 @@
                 }
 
                 // Redesenha a cada evento para o texto aparecer aos poucos.
+                RequestScroll(force: false);
                 StateHasChanged();
             }
+
+            reply.Timing = firstTextMs is null
+                ? null
+                : $"1º texto em {firstTextMs / 1000.0:0.0} s · resposta completa em {stopwatch.ElapsedMilliseconds / 1000.0:0.0} s";
         }
         catch (OperationCanceledException)
         {
@@ -151,19 +249,59 @@
         finally
         {
             busy = false;
+            RequestScroll(force: false);
         }
+    }
+
+    private void RequestScroll(bool force)
+    {
+        scrollPending = true;
+        forceScroll |= force;
     }
 
     private static string Describe(StartEvent start) => start switch
     {
-        { Agent: null } => $"Sem agente: o roteador pediu mais informações (confiança {start.Confidence:P0})",
-        { Routed: true } => $"{start.Agent} · escolhido pelo roteador (confiança {start.Confidence:P0})",
-        _ => $"{start.Agent} · escolhido por você"
+        { Agent: null } => $"roteador sem confiança ({start.Confidence:P0}): pediu mais informações",
+        { Routed: true } => $"escolhido pelo roteador · confiança {start.Confidence:P0}",
+        _ => "escolhido por você"
     };
 
-    public void Dispose()
+    private static string AgentClass(string? key) => key?.ToLowerInvariant() switch
+    {
+        "bank" => "agent-bank",
+        "hunter" => "agent-hunter",
+        "seller" => "agent-seller",
+        _ => "agent-other"
+    };
+
+    private static string Initial(MessageView message)
+        => message.Role == "user" ? "V" : (message.AgentKey ?? "?")[..1].ToUpperInvariant();
+
+    // As respostas dos agentes vêm em Markdown. HTML cru é desligado, e links com javascript: são neutralizados.
+    private static MarkupString RenderMarkdown(string text)
+    {
+        var html = Markdown.ToHtml(text, MarkdownPipeline);
+        html = Regex.Replace(html, "href=\"\\s*javascript:[^\"]*\"", "href=\"#\"", RegexOptions.IgnoreCase);
+        html = html.Replace("<a href=", "<a target=\"_blank\" rel=\"noopener noreferrer\" href=");
+
+        return new MarkupString(html);
+    }
+
+    public async ValueTask DisposeAsync()
     {
         disposing.Cancel();
         disposing.Dispose();
+
+        if (module is not null)
+        {
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // O circuito já caiu; não há mais o que liberar no navegador.
+            }
+        }
     }
 }

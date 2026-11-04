@@ -30,7 +30,7 @@ public static class A2AAgentExtensions
 
         // A chave só é exigida quando o modelo é de fato usado: o Agent Card continua servindo sem ela.
         // PublicationOnly não guarda a exceção: com a chave corrigida, a próxima chamada já funciona.
-        services.AddSingleton(_ => new Lazy<IChatClient>(() =>
+        services.AddSingleton(sp => new Lazy<IChatClient>(() =>
         {
             // No compose, ${AI_API_KEY:-} chega como texto vazio quando a variável não está definida.
             var apiKey = configuration["AI_API_KEY"];
@@ -38,10 +38,15 @@ public static class A2AAgentExtensions
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new InvalidOperationException("Defina a variável de ambiente AI_API_KEY com a chave da API do Google Gemini.");
 
+            var modelId = configuration["Gemini:ModelId"] ?? "gemini-3.5-flash-lite";
+
+            sp.GetRequiredService<ILoggerFactory>().CreateLogger("Agent.Auto.A2A")
+                .LogInformation("Cliente do Gemini criado (modelo {ModelId})", modelId);
+
             return new GeminiChatClient(new GeminiClientOptions
             {
                 ApiKey = apiKey,
-                ModelId = configuration["Gemini:ModelId"] ?? "gemini-2.5-flash",
+                ModelId = modelId,
             });
         }, LazyThreadSafetyMode.PublicationOnly));
 

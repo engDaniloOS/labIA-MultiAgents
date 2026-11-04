@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -9,7 +10,7 @@ namespace Agent.Auto.Orchestor.Services;
 
 public class AgentCallException(string message, Exception? inner = null) : Exception(message, inner);
 
-public class AgentClient(IHttpClientFactory httpClientFactory)
+public class AgentClient(IHttpClientFactory httpClientFactory, ILogger<AgentClient> logger)
 {
     private const string JsonRpcBinding = "JSONRPC";
     private const string RoleUser = "ROLE_USER";
@@ -40,6 +41,13 @@ public class AgentClient(IHttpClientFactory httpClientFactory)
             Parts = [new A2APart(text)]
         };
         var payload = new JsonRpcRequest("SendStreamingMessage", new SendMessageParams(message));
+
+        logger.LogInformation("Chamando o agente {Agent} em {Url}: SendStreamingMessage ctx={ContextId}", agent.Key, url, contextId);
+
+        var stopwatch = Stopwatch.StartNew();
+        long? firstChunkMs = null;
+        var chunkCount = 0;
+        var charCount = 0;
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
@@ -105,8 +113,14 @@ public class AgentClient(IHttpClientFactory httpClientFactory)
 
                     foreach (var part in envelope.Result?.ArtifactUpdate?.Artifact.Parts ?? [])
                     {
-                        if (!string.IsNullOrEmpty(part.Text))
-                            yield return part.Text;
+                        if (string.IsNullOrEmpty(part.Text))
+                            continue;
+
+                        chunkCount++;
+                        charCount += part.Text.Length;
+                        firstChunkMs ??= stopwatch.ElapsedMilliseconds;
+
+                        yield return part.Text;
                     }
 
                     var status = envelope.Result?.StatusUpdate?.Status;
@@ -120,7 +134,13 @@ public class AgentClient(IHttpClientFactory httpClientFactory)
                     }
 
                     if (status.State == "TASK_STATE_COMPLETED")
+                    {
+                        logger.LogInformation(
+                            "Agente {Agent} concluiu: ctx={ContextId} {Chars} caracteres em {Chunks} pedaços, primeiro em {FirstMs} ms, total {ElapsedMs} ms",
+                            agent.Key, contextId, charCount, chunkCount, firstChunkMs, stopwatch.ElapsedMilliseconds);
+
                         yield break;
+                    }
                 }
             }
         }
@@ -138,6 +158,9 @@ public class AgentClient(IHttpClientFactory httpClientFactory)
             Parts = [new A2APart(text)]
         };
         var payload = new JsonRpcRequest("SendMessage", new SendMessageParams(message));
+
+        logger.LogInformation("Chamando o agente {Agent} em {Url}: SendMessage ctx={ContextId}", agent.Key, url, contextId);
+        var stopwatch = Stopwatch.StartNew();
 
         try
         {
@@ -159,9 +182,13 @@ public class AgentClient(IHttpClientFactory httpClientFactory)
 
             var reply = string.Join("\n", body.Result?.Message?.Parts.Select(p => p.Text).Where(t => !string.IsNullOrWhiteSpace(t)) ?? []);
 
-            return string.IsNullOrWhiteSpace(reply)
-                ? throw new AgentCallException($"O agente {agent.Key} respondeu sem texto.")
-                : reply;
+            if (string.IsNullOrWhiteSpace(reply))
+                throw new AgentCallException($"O agente {agent.Key} respondeu sem texto.");
+
+            logger.LogInformation("Agente {Agent} respondeu: ctx={ContextId} {Chars} caracteres em {ElapsedMs} ms",
+                agent.Key, contextId, reply.Length, stopwatch.ElapsedMilliseconds);
+
+            return reply;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
