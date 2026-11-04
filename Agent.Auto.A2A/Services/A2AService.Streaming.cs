@@ -2,10 +2,10 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Agent.Auto.Seller.Models;
+using Agent.Auto.A2A.Models;
 using Microsoft.Extensions.AI;
 
-namespace Agent.Auto.Seller.Services;
+namespace Agent.Auto.A2A.Services;
 
 /// <summary>Resultado de iniciar um SendStreamingMessage: ou um erro JSON-RPC comum, ou o fluxo de eventos já serializados.</summary>
 public sealed record StreamStart(JsonRpcResponse? Error, IAsyncEnumerable<string>? Events);

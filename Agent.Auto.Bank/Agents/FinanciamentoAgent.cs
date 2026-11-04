@@ -1,12 +1,13 @@
-using System.Runtime.CompilerServices;
-using Microsoft.Agents.AI;
+using Agent.Auto.A2A.Agents;
 using Microsoft.Extensions.AI;
 
 namespace Agent.Auto.Bank.Agents;
 
-public class FinanciamentoAgent : IMessageAgent
+public sealed class FinanciamentoAgent(Lazy<IChatClient> chatClient) : ChatMessageAgent(chatClient)
 {
-    private const string Instructions = """
+    protected override string Name => "AgenteFinanciamento";
+
+    protected override string Instructions => """
         Voce é um consultor de financiamento veicular de um banco. Ajuda o cliente a entender opções
         de financiamento, prazos, taxas de juros, entrada mínima, documentos necessários e como
         simular o valor das parcelas.
@@ -18,37 +19,5 @@ public class FinanciamentoAgent : IMessageAgent
         - Se a pergunta fugir de financiamento veicular, diga que só pode ajudar com esse assunto.
         """;
 
-    private const float Temperature = 0.2f;
-
-    private readonly Lazy<AIAgent> _agent;
-
-    public FinanciamentoAgent(Lazy<IChatClient> chatClient)
-    {
-        _agent = new Lazy<AIAgent>(() => chatClient.Value.AsAIAgent(new ChatClientAgentOptions
-        {
-            Name = "AgenteFinanciamento",
-            ChatOptions = new ChatOptions
-            {
-                Instructions = Instructions,
-                Temperature = Temperature
-            }
-        }), LazyThreadSafetyMode.PublicationOnly);
-    }
-
-    public async Task<string> RespondAsync(IReadOnlyList<ChatMessage> history, CancellationToken cancellationToken = default)
-    {
-        var response = await _agent.Value.RunAsync(history, cancellationToken: cancellationToken);
-        return response.Text;
-    }
-
-    public async IAsyncEnumerable<string> RespondStreamingAsync(
-        IReadOnlyList<ChatMessage> history,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        await foreach (var update in _agent.Value.RunStreamingAsync(history, cancellationToken: cancellationToken))
-        {
-            if (!string.IsNullOrEmpty(update.Text))
-                yield return update.Text;
-        }
-    }
+    protected override float Temperature => 0.2f;
 }

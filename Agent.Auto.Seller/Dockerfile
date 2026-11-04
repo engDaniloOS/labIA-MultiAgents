@@ -13,6 +13,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Agent.Auto.Seller/Agent.Auto.Seller.csproj", "Agent.Auto.Seller/"]
+COPY ["Agent.Auto.A2A/Agent.Auto.A2A.csproj", "Agent.Auto.A2A/"]
 RUN dotnet restore "./Agent.Auto.Seller/Agent.Auto.Seller.csproj"
 COPY . .
 WORKDIR "/src/Agent.Auto.Seller"

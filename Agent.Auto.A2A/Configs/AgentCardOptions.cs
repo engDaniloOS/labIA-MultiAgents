@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using Agent.Auto.Hunter.Models;
+using Agent.Auto.A2A.Models;
 
-namespace Agent.Auto.Hunter.Configs;
+namespace Agent.Auto.A2A.Configs;
 
 public class AgentCardOptions
 {

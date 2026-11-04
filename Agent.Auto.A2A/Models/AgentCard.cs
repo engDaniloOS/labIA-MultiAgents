@@ -1,4 +1,4 @@
-namespace Agent.Auto.Bank.Models;
+namespace Agent.Auto.A2A.Models;
 
 public sealed record AgentCard
 {

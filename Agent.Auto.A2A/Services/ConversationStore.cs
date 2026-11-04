@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 
-namespace Agent.Auto.Bank.Services;
+namespace Agent.Auto.A2A.Services;
 
 public class ConversationStore
 {

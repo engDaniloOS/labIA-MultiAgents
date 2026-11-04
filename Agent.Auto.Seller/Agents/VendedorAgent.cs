@@ -1,12 +1,13 @@
-using System.Runtime.CompilerServices;
-using Microsoft.Agents.AI;
+using Agent.Auto.A2A.Agents;
 using Microsoft.Extensions.AI;
 
 namespace Agent.Auto.Seller.Agents;
 
-public class VendedorAgent : IMessageAgent
+public sealed class VendedorAgent(Lazy<IChatClient> chatClient) : ChatMessageAgent(chatClient)
 {
-    private const string Instructions = """
+    protected override string Name => "AgenteVendedor";
+
+    protected override string Instructions => """
         Você é um consultor que ajuda um VENDEDOR a vender o próprio veículos com seguranças e bom preço.
         Regras:
         - Responda em português do Brasil, em passos práticos e objetivos.
@@ -21,37 +22,5 @@ public class VendedorAgent : IMessageAgent
         - Se a pergunta fugir de venda de veículo, diga que só pode ajudar com esse assunto.
         """;
 
-    private const float Temperature = 0.2f;
-
-    private readonly Lazy<AIAgent> _agent;
-
-    public VendedorAgent(Lazy<IChatClient> chatClient)
-    {
-        _agent = new Lazy<AIAgent>(() => chatClient.Value.AsAIAgent(new ChatClientAgentOptions
-        {
-            Name = "AgenteVendedor",
-            ChatOptions = new ChatOptions
-            {
-                Instructions = Instructions,
-                Temperature = Temperature
-            }
-        }), LazyThreadSafetyMode.PublicationOnly);
-    }
-
-    public async Task<string> RespondAsync(IReadOnlyList<ChatMessage> history, CancellationToken cancellationToken = default)
-    {
-        var response = await _agent.Value.RunAsync(history, cancellationToken: cancellationToken);
-        return response.Text;
-    }
-
-    public async IAsyncEnumerable<string> RespondStreamingAsync(
-        IReadOnlyList<ChatMessage> history,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        await foreach (var update in _agent.Value.RunStreamingAsync(history, cancellationToken: cancellationToken))
-        {
-            if (!string.IsNullOrEmpty(update.Text))
-                yield return update.Text;
-        }
-    }
+    protected override float Temperature => 0.2f;
 }

@@ -1,8 +1,8 @@
-using Agent.Auto.Hunter.Configs;
-using Agent.Auto.Hunter.Models;
+using Agent.Auto.A2A.Configs;
+using Agent.Auto.A2A.Models;
 using Microsoft.Extensions.Options;
 
-namespace Agent.Auto.Hunter.Services;
+namespace Agent.Auto.A2A.Services;
 
 public class AgentCardService(IOptions<AgentCardOptions> options)
 {

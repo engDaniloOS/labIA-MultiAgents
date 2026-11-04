@@ -1,8 +1,8 @@
 using System.Text.Json;
-using Agent.Auto.Seller.Agents;
-using Agent.Auto.Seller.Models;
+using Agent.Auto.A2A.Agents;
+using Agent.Auto.A2A.Models;
 
-namespace Agent.Auto.Seller.Services;
+namespace Agent.Auto.A2A.Services;
 
 public partial class A2AService(IMessageAgent agent, ConversationStore store, ILogger<A2AService> logger)
 {
@@ -28,6 +28,7 @@ public partial class A2AService(IMessageAgent agent, ConversationStore store, IL
     private async Task<JsonRpcResponse> SendMessageAsync(JsonRpcRequest request, CancellationToken cancellationToken)
     {
         var message = ReadMessage(request.Params);
+
         var text = message is null
             ? string.Empty
             : string.Join("\n", message.Parts.Select(p => p.Text).Where(t => !string.IsNullOrWhiteSpace(t)));
@@ -39,6 +40,7 @@ public partial class A2AService(IMessageAgent agent, ConversationStore store, IL
         var history = store.AddUserMessage(contextId, text);
 
         string reply;
+
         try
         {
             reply = await agent.RespondAsync(history, cancellationToken);

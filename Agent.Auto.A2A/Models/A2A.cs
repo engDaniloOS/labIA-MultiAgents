@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Agent.Auto.Seller.Models;
+namespace Agent.Auto.A2A.Models;
 
 public sealed record JsonRpcRequest
 {
@@ -37,8 +37,6 @@ public sealed record A2APart
 }
 
 public sealed record SendMessageResult(A2AMessage Message);
-
-// --- Streaming (SendStreamingMessage): cada evento SSE carrega exatamente uma destas variantes em "result".
 
 public sealed record StreamResponse
 {
