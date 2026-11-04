@@ -52,3 +52,15 @@ services:
       AI_API_KEY: ${AI_API_KEY:-}
     ports:
       - "5200:8080"
+
+  web:
+    build:
+      context: .
+      dockerfile: Agent.Auto.Web/Dockerfile
+    container_name: agent-auto-web
+    depends_on:
+      - orchestrator-api
+    environment:
+      Orchestrator__BaseUrl: http://orchestrator-api:8080
+    ports:
+      - "5400:8080"

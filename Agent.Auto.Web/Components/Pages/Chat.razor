@@ -1,0 +1,169 @@
+@page "/"
+@using Agent.Auto.Web.Models
+@using Agent.Auto.Web.Services
+@implements IDisposable
+@inject OrchestratorClient Orchestrator
+
+<PageTitle>Agentes de veículos</PageTitle>
+
+<div class="chat">
+    <h1>Agentes de veículos</h1>
+
+    <div class="toolbar">
+        <label>
+            Agente
+            <select @bind="selectedAgent" disabled="@busy">
+                <option value="">Automático (roteador)</option>
+                @foreach (var agent in agents)
+                {
+                    <option value="@agent.Key" disabled="@(!agent.Available)">
+                        @agent.Key@(agent.Available ? "" : " (indisponível)")
+                    </option>
+                }
+            </select>
+        </label>
+        <button type="button" @onclick="LoadAgentsAsync" disabled="@busy">Atualizar agentes</button>
+        <button type="button" @onclick="NewConversation" disabled="@busy">Nova conversa</button>
+    </div>
+
+    <small class="conversation">Conversa: @(conversationId ?? "(nova)")</small>
+
+    @if (agentsError is not null)
+    {
+        <p class="error">@agentsError</p>
+    }
+
+    <div class="messages">
+        @if (messages.Count == 0)
+        {
+            <p class="empty">Escreva uma mensagem. Ex.: "Quero um carro econômico até 80 mil" ou "Como vendo meu carro?".</p>
+        }
+
+        @foreach (var message in messages)
+        {
+            <div class="message @message.Role">
+                @if (message.Meta is not null)
+                {
+                    <div class="meta">@message.Meta</div>
+                }
+
+                <div class="text">@(message.Text.Length == 0 && message.Error is null ? "…" : message.Text)</div>
+
+                @if (message.Error is not null)
+                {
+                    <div class="error">@message.Error</div>
+                }
+            </div>
+        }
+    </div>
+
+    <form @onsubmit="SendAsync">
+        <input @bind="input" @bind:event="oninput" disabled="@busy" placeholder="Digite sua mensagem" autocomplete="off" />
+        <button type="submit" disabled="@(busy || string.IsNullOrWhiteSpace(input))">Enviar</button>
+    </form>
+</div>
+
+@code {
+    private sealed class MessageView(string role, string text)
+    {
+        public string Role { get; } = role;
+        public string Text { get; set; } = text;
+        public string? Meta { get; set; }
+        public string? Error { get; set; }
+    }
+
+    private readonly List<MessageView> messages = [];
+    private readonly CancellationTokenSource disposing = new();
+
+    private IReadOnlyList<AgentDto> agents = [];
+    private string? agentsError;
+    private string selectedAgent = "";
+    private string? conversationId;
+    private string input = "";
+    private bool busy;
+
+    protected override Task OnInitializedAsync() => LoadAgentsAsync();
+
+    private async Task LoadAgentsAsync()
+    {
+        try
+        {
+            agents = await Orchestrator.GetAgentsAsync(disposing.Token);
+            agentsError = null;
+        }
+        catch (OrchestratorException ex)
+        {
+            agentsError = ex.Message;
+        }
+    }
+
+    private void NewConversation()
+    {
+        messages.Clear();
+        conversationId = null;
+    }
+
+    private async Task SendAsync()
+    {
+        var text = input.Trim();
+        if (busy || text.Length == 0)
+            return;
+
+        input = "";
+        busy = true;
+
+        messages.Add(new MessageView("user", text));
+        var reply = new MessageView("assistant", "");
+        messages.Add(reply);
+
+        try
+        {
+            var agent = string.IsNullOrEmpty(selectedAgent) ? null : selectedAgent;
+
+            await foreach (var evt in Orchestrator.StreamChatAsync(text, agent, conversationId, disposing.Token))
+            {
+                switch (evt)
+                {
+                    case StartEvent start:
+                        conversationId = start.ConversationId;
+                        reply.Meta = Describe(start);
+                        break;
+                    case DeltaEvent delta:
+                        reply.Text += delta.Text;
+                        break;
+                    case ErrorEvent error:
+                        reply.Error = error.Message;
+                        break;
+                }
+
+                // Redesenha a cada evento para o texto aparecer aos poucos.
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A página foi fechada no meio da resposta.
+        }
+        catch (Exception ex) when (ex is OrchestratorException or HttpRequestException or IOException)
+        {
+            reply.Error = ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static string Describe(StartEvent start) => start switch
+    {
+        { Agent: null } => $"Sem agente: o roteador pediu mais informações (confiança {start.Confidence:P0})",
+        { Routed: true } => $"{start.Agent} · escolhido pelo roteador (confiança {start.Confidence:P0})",
+        _ => $"{start.Agent} · escolhido por você"
+    };
+
+    public void Dispose()
+    {
+        disposing.Cancel();
+        disposing.Dispose();
+    }
+}
